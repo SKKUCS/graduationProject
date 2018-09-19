@@ -42,6 +42,11 @@ SGA(가칭)는 SKKU Game AI의 준말로, 여러 정보를 습득해 인간에 �
  게임을 좌표로 표현가능한 경우에는, Markov Decision Process(이하 MDP)를 이용하여 구현한 인공지능도 존재한다. MDP란 모델을 Agent와 State 등으로 나누어 각 상황에서 할 수 있는 선택을 통해 얻을 수 있는 보상을 예측하는 방법이다. 비록 모델을 구현하는데 어려움이 따르긴 하지만, 적절한 모델과 함수를 구현할 수 있다면 MDP는 게임 ai를 구현하는데 강력한 도구가 될 것이다.
  밑의 예시는 이를 이용하여 모바일 게임 '쿠키런'을 플레이하는 인공지능의 시연 장면이다.
  (사진)
-
- 세계적으로 큰 관심을
-### 2
+###2.1 체스, 바둑
+###2.2 실시간 전략 시뮬레이션
+ 1. 스타크래프트는 블리자드 사에서 1998년도에 만든 전략 시뮬레이션 게임이다.(필요한가?) 이 게임의 경우 AIIDE(Artificail Intelligence and Interative Digital Entertainment), CIG(Computational Intelligence and Games), SSCAIT(Student starcraft AI Tournament)와 같은 세계구급 AI 대회가 있다.
+ 2. 2017년 10월 31일 세종대학교에서 AI와 인간 플레이어 사이의 대결이 이루어졌으며, 세종대학교 재학생의 경우 6경기중 1경기만 승리했지만, 프로게이머 송병구 선수는 4:0으로 압승함.
+ 3. 알파고 이후 구글은 스타크래프트2에 도전하겠다는 의사를 밝힘.
+###2.3 기타 장르에서의 AI
+ 1. 블레이드 앤 소울이라는 MMORPG에서는, AI를 이용한 PvE(Player versus Environment) 컨텐츠가 존재함. 기계학습을 이용하여, 10만번이 넘는 학습 과정을 거침. 학습 정도를 난이도로 나누어 배치함. ((http://blog.ncsoft.com/?p=13249))
+ 2. Grid world와 MDP를 이용한 쿠키런 AI가 존재함. Grid world는 팩맨과 같이 agent과 
