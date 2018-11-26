@@ -6,7 +6,7 @@ env = gym_super_mario_bros.make('SuperMarioBros-v0')
 env = BinarySpaceToDiscreteSpaceEnv(env, RIGHT_ONLY)
 
 done = True
-xpos = 0
+xpos = 01
 for step in range(1000):
     if done:
         state = env.reset()
