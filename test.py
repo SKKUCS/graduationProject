@@ -6,16 +6,26 @@ env = gym_super_mario_bros.make('SuperMarioBros-v0')
 env = BinarySpaceToDiscreteSpaceEnv(env, RIGHT_ONLY)
 
 done = True
-xpos = 01
-for step in range(1000):
+lastx = 1
+lastlife = 3
+lastreward = 0
+for step in range(500):
     if done:
         state = env.reset()
     state, reward, done, info = env.step(env.action_space.sample())
-    temp = info.get('x_pos')
-    if temp > xpos:
-        xpos = temp
-        print(xpos, end = '   ')
-        print(step)
+    x = info.get('x_pos')
+    life = info.get('life')
+    print(lastreward, end = '   ')
+    print(lastx, end = '   ')
+    print(step)
+    lastreward = reward
+    lastx = x
+    lastlife = life
     env.render()
-
+"""
+    if lastlife != life:
+        print(lastreward, end = '   ')
+        print(lastx, end = '   ')
+        print(step)
+"""
 env.close()
