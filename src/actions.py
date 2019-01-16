@@ -8,5 +8,8 @@ RIGHT_ONLY = [
 
 REALLY_RIGHT_ONLY = [
     ['right'],
+    ['right', 'A'],
+    ['right', 'B'],
+    ['right', 'A', 'B'],
 ]
 
