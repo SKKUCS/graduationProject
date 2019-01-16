@@ -11,10 +11,10 @@ lastx = 1
 cnt = 1
 lastreward = 0
 life = 2
-    for step in range(1000):
-	if done:
-	    state = env.reset()
-	    life = 2
+for step in range(1000):
+    if done:
+        state = env.reset()
+        life = 2
     state, reward, done, info = env.step(env.action_space.sample())
     x = info.get('x_pos')
     if life != info.get('life'):
@@ -26,7 +26,6 @@ life = 2
     print(step)
     lastreward = reward
     lastx = x
-    
     #lastlife = life
     env.render()
 """
