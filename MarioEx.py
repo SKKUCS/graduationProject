@@ -5,6 +5,15 @@ import gym_super_mario_bros
 import matplotlib.pyplot as plt
 # %matplotlib inline
 
+from nes_py.wrappers import BinarySpaceToDiscreteSpaceEnv
+import gym_super_mario_bros
+#from gym_super_mario_bros.actions import RIGHT_ONLY
+from src.actions import REALLY_RIGHT_ONLY
+import math
+import random
+env = gym_super_mario_bros.make('SuperMarioBros-v0')
+env = BinarySpaceToDiscreteSpaceEnv(env, REALLY_RIGHT_ONLY)
+
 try:
     xrange = xrange
 except:
@@ -25,17 +34,17 @@ def discount_rewards(r):
 	
 
 class agent():
-    def __init__(self, lr, s_size,a_size,h_size):
+    def __init__(self, lr, s_size, s_size2, s_size3,a_size,h_size):
         #These lines established the feed-forward part of the network. The agent takes a state and produces an action.
-        self.state_in= tf.placeholder(shape=[None,s_size],dtype=tf.float32)
+        self.state_in= tf.placeholder(shape=[None,s_size, s_size2, s_size3],dtype=tf.float32, name = 'agent_state_in')
         hidden = slim.fully_connected(self.state_in,h_size,biases_initializer=None,activation_fn=tf.nn.relu)
         self.output = slim.fully_connected(hidden,a_size,activation_fn=tf.nn.softmax,biases_initializer=None)
         self.chosen_action = tf.argmax(self.output,1)
 
         #The next six lines establish the training proceedure. We feed the reward and chosen action into the network
         #to compute the loss, and use it to update the network.
-        self.reward_holder = tf.placeholder(shape=[None],dtype=tf.float32)
-        self.action_holder = tf.placeholder(shape=[None],dtype=tf.int32)
+        self.reward_holder = tf.placeholder(shape=[None],dtype=tf.float32, name = 'reward')
+        self.action_holder = tf.placeholder(shape=[None],dtype=tf.int32, name = 'action')
         
         self.indexes = tf.range(0, tf.shape(self.output)[0]) * tf.shape(self.output)[1] + self.action_holder
         self.responsible_outputs = tf.gather(tf.reshape(self.output, [-1]), self.indexes)
@@ -55,7 +64,7 @@ class agent():
 
 tf.reset_default_graph() #Clear the Tensorflow graph.
 
-myAgent = agent(lr=1e-2,s_size=3,a_size=2,h_size=8) #Load the agent.
+myAgent = agent(lr=1e-2,s_size=240,s_size2=256, s_size3=3,a_size=2,h_size=8) #Load the agent.
 
 total_episodes = 5000 #Set total number of episodes to train agent on.
 max_ep = 999

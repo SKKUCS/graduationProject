@@ -12,12 +12,13 @@ max_x = 0
 cnt = 1
 lastreward = 0
 life = 2
-for step in range(500):
+for step in range(1):
     if done:
         state = env.reset()
         life = 2
     state, reward, done, info = env.step(random.randrange(0,8))
     x = info.get('x_pos')
+    print(state)
     if life != info.get('life'):
         cnt += 1
     life = info.get('life')
@@ -29,7 +30,7 @@ for step in range(500):
         print(step)
     lastreward = reward
     #lastlife = life
-#    env.render()
+    env.render()
 """
     if lastlife != life:
         print(lastreward, end = '   ')
