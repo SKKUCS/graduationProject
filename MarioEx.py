@@ -8,11 +8,18 @@ import matplotlib.pyplot as plt
 from nes_py.wrappers import BinarySpaceToDiscreteSpaceEnv
 import gym_super_mario_bros
 #from gym_super_mario_bros.actions import RIGHT_ONLY
-from src.actions import REALLY_RIGHT_ONLY
+from src.actions import RIGHT_ONLY
 import math
 #import random
-env = gym_super_mario_bros.make('SuperMarioBros-v0')
-env = BinarySpaceToDiscreteSpaceEnv(env, REALLY_RIGHT_ONLY)
+
+def to_grayscale(img):
+    return np.mean(img, axis=2).astype(np.uint8)
+def downsample(img):
+    return img[48:216:2, 44:212:2]
+def expand_dimension(img):
+    return np.expand_dims(img, axis=2)
+def preprocess(img):
+    return expand_dimension(to_grayscale(downsample(img)))
 
 try:
     xrange = xrange
@@ -20,6 +27,7 @@ except:
     xrange = range
 
 env = gym_super_mario_bros.make('SuperMarioBros-v0')
+env = BinarySpaceToDiscreteSpaceEnv(env, RIGHT_ONLY)
 
 gamma = 0.99
 
@@ -34,12 +42,29 @@ def discount_rewards(r):
 
 
 class agent():
-    def __init__(self, lr, s_size, s_size2, s_size3,a_size,h_size):
+    def __init__(self, lr, s_size, s_size2, a_size,h_size):
         #These lines established the feed-forward part of the network. The agent takes a state and produces an action.
         #WA : changed number of parameter from the originial code,
-        self.state_in= tf.placeholder(shape=[None,s_size, s_size2, s_size3],dtype=tf.float32, name = 'agent_state_in')
-        hidden = slim.fully_connected(self.state_in,h_size,biases_initializer=None,activation_fn=tf.nn.relu)
-        self.output = slim.fully_connected(hidden,a_size,activation_fn=tf.nn.softmax,biases_initializer=None)
+        #self.state_in= tf.placeholder(shape=[None,s_size, s_size2],dtype=tf.float32, name = 'agent_state_in')
+        self.state_in = tf.placeholder(tf.float32, [None, 84, 84, 1], name = 'state_in')
+        W1 = tf.Variable(tf.random_normal([8, 8, 1, 32], stddev=0.01))
+        L1 = tf.nn.conv2d(self.state_in, W1, strides=[1, 4, 4, 1], padding='SAME')
+        L1 = tf.nn.relu(L1)
+        W2 = tf.Variable(tf.random_normal([4, 4, 32, 64], stddev=0.01))
+        L2 = tf.nn.conv2d(L1, W2, strides=[1, 2, 2, 1], padding='SAME')
+        L2 = tf.nn.relu(L2)
+        W3 = tf.Variable(tf.random_normal([3, 3, 64, 128], stddev=0.01))
+        L3 = tf.nn.conv2d(L2, W3, strides=[1, 1, 1, 1], padding='SAME')
+        L3 = tf.nn.relu(L3)
+        W4 = tf.Variable(tf.random_normal([11 * 11 * 128, 512], stddev=0.01))
+        L4 = tf.reshape(L3, [-1, 11 * 11 * 128])
+        L4 = tf.matmul(L4, W4)
+        L4 = tf.nn.relu(L4)
+        W5 = tf.Variable(tf.random_normal([512, 5], stddev=0.01))
+        self.output = tf.nn.softmax(tf.nn.relu(tf.matmul(L4, W5)))
+        #L4 = tf.nn.dropout(L4, keep_prob)
+        #hidden = slim.fully_connected(self.state_in,h_size,biases_initializer=None,activation_fn=tf.nn.relu)
+        #self.output = slim.fully_connected(hidden,a_size,activation_fn=tf.nn.softmax,biases_initializer=None)
         self.chosen_action = tf.argmax(self.output,1)
 
         #The next six lines establish the training proceedure. We feed the reward and chosen action into the network
@@ -65,7 +90,7 @@ class agent():
 
 tf.reset_default_graph() #Clear the Tensorflow graph.
 
-myAgent = agent(lr=1e-2,s_size=240,s_size2=256, s_size3=3,a_size=4,h_size=8) #Load the agent.
+myAgent = agent(lr=1e-2,s_size=84,s_size2=84, a_size=5,h_size=8) #Load the agent.
 #WA : changed the parameter from original code
 
 total_episodes = 5000 #Set total number of episodes to train agent on.
@@ -86,17 +111,18 @@ with tf.Session() as sess:
 
     while i < total_episodes:
         s = env.reset()
+        s = preprocess(s)
         running_reward = 0
         ep_history = []
         for j in range(max_ep):
             #Probabilistically pick an action given our network outputs.
             a_dist = sess.run(myAgent.output,feed_dict={myAgent.state_in:[s]})
-            print(np.shape(a_dist))
+            #print(np.shape(a_dist)) #print shape for check
             a = np.random.choice(a_dist[0], p = a_dist[0])
             a = np.argmax(a_dist == a)
 
             s1,r,d,_ = env.step(a) #Get our reward for taking an action given a bandit.
-
+            s1 = preprocess(s1)
             ep_history.append([s,a,r,s1])
             s = s1
             running_reward += r
@@ -119,6 +145,7 @@ with tf.Session() as sess:
                 total_reward.append(running_reward)
                 total_lenght.append(j)
                 break
+            env.render()
 
 
             #Update our running tally of scores.
