@@ -10,7 +10,7 @@ import gym_super_mario_bros
 #from gym_super_mario_bros.actions import RIGHT_ONLY
 from src.actions import REALLY_RIGHT_ONLY
 import math
-import random
+#import random
 env = gym_super_mario_bros.make('SuperMarioBros-v0')
 env = BinarySpaceToDiscreteSpaceEnv(env, REALLY_RIGHT_ONLY)
 
@@ -31,11 +31,12 @@ def discount_rewards(r):
         running_add = running_add * gamma + r[t]
         discounted_r[t] = running_add
     return discounted_r
-	
+
 
 class agent():
     def __init__(self, lr, s_size, s_size2, s_size3,a_size,h_size):
         #These lines established the feed-forward part of the network. The agent takes a state and produces an action.
+        #WA : changed number of parameter from the originial code,
         self.state_in= tf.placeholder(shape=[None,s_size, s_size2, s_size3],dtype=tf.float32, name = 'agent_state_in')
         hidden = slim.fully_connected(self.state_in,h_size,biases_initializer=None,activation_fn=tf.nn.relu)
         self.output = slim.fully_connected(hidden,a_size,activation_fn=tf.nn.softmax,biases_initializer=None)
@@ -45,26 +46,27 @@ class agent():
         #to compute the loss, and use it to update the network.
         self.reward_holder = tf.placeholder(shape=[None],dtype=tf.float32, name = 'reward')
         self.action_holder = tf.placeholder(shape=[None],dtype=tf.int32, name = 'action')
-        
+
         self.indexes = tf.range(0, tf.shape(self.output)[0]) * tf.shape(self.output)[1] + self.action_holder
         self.responsible_outputs = tf.gather(tf.reshape(self.output, [-1]), self.indexes)
 
         self.loss = -tf.reduce_mean(tf.log(self.responsible_outputs)*self.reward_holder)
-        
+
         tvars = tf.trainable_variables()
         self.gradient_holders = []
         for idx,var in enumerate(tvars):
             placeholder = tf.placeholder(tf.float32,name=str(idx)+'_holder')
             self.gradient_holders.append(placeholder)
-        
+
         self.gradients = tf.gradients(self.loss,tvars)
-        
+
         optimizer = tf.train.AdamOptimizer(learning_rate=lr)
         self.update_batch = optimizer.apply_gradients(zip(self.gradient_holders,tvars))
 
 tf.reset_default_graph() #Clear the Tensorflow graph.
 
-myAgent = agent(lr=1e-2,s_size=240,s_size2=256, s_size3=3,a_size=2,h_size=8) #Load the agent.
+myAgent = agent(lr=1e-2,s_size=240,s_size2=256, s_size3=3,a_size=4,h_size=8) #Load the agent.
+#WA : changed the parameter from original code
 
 total_episodes = 5000 #Set total number of episodes to train agent on.
 max_ep = 999
@@ -78,11 +80,10 @@ with tf.Session() as sess:
     i = 0
     total_reward = []
     total_lenght = []
-        
     gradBuffer = sess.run(tf.trainable_variables())
     for ix,grad in enumerate(gradBuffer):
         gradBuffer[ix] = grad * 0
-        
+
     while i < total_episodes:
         s = env.reset()
         running_reward = 0
@@ -90,10 +91,12 @@ with tf.Session() as sess:
         for j in range(max_ep):
             #Probabilistically pick an action given our network outputs.
             a_dist = sess.run(myAgent.output,feed_dict={myAgent.state_in:[s]})
-            a = np.random.choice(a_dist[0],p=a_dist[0])
+            print(np.shape(a_dist))
+            a = np.random.choice(a_dist[0], p = a_dist[0])
             a = np.argmax(a_dist == a)
 
             s1,r,d,_ = env.step(a) #Get our reward for taking an action given a bandit.
+
             ep_history.append([s,a,r,s1])
             s = s1
             running_reward += r
@@ -112,12 +115,12 @@ with tf.Session() as sess:
                     _ = sess.run(myAgent.update_batch, feed_dict=feed_dict)
                     for ix,grad in enumerate(gradBuffer):
                         gradBuffer[ix] = grad * 0
-                
+
                 total_reward.append(running_reward)
                 total_lenght.append(j)
                 break
 
-        
+
             #Update our running tally of scores.
         if i % 100 == 0:
             print(np.mean(total_reward[-100:]))

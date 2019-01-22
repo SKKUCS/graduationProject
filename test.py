@@ -4,9 +4,22 @@ import gym_super_mario_bros
 from src.actions import REALLY_RIGHT_ONLY
 import math
 import random
+import numpy as np
 env = gym_super_mario_bros.make('SuperMarioBros-v0')
 env = BinarySpaceToDiscreteSpaceEnv(env, REALLY_RIGHT_ONLY)
 
+
+def to_grayscale(img):
+    return np.mean(img, axis=2).astype(np.uint8)
+def downsample(img):
+    return img[48:216:2, 44:212:2]
+def preprocess(img):
+    return to_grayscale(downsample(img))
+def to_grayscale2(img):
+    return np.dot(img[...,:3], [0.299, 0.587, 0.114]).astype(np.uint8)
+    #grayscale with ITU-R 601-2 luma transformation
+def preprocess2(img):
+    return downsample(to_grayscale2(img))
 done = True
 max_x = 0
 cnt = 1
@@ -18,7 +31,13 @@ for step in range(1):
         life = 2
     state, reward, done, info = env.step(random.randrange(0,8))
     x = info.get('x_pos')
+
     print(state)
+    print(np.shape(state))
+    state = preprocess2(state)
+    print(state)
+    print(np.shape(state))
+
     if life != info.get('life'):
         cnt += 1
     life = info.get('life')
@@ -38,4 +57,3 @@ for step in range(1):
         print(step)
 """
 env.close()
-
