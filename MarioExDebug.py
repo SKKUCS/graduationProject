@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from nes_py.wrappers import BinarySpaceToDiscreteSpaceEnv
 import gym_super_mario_bros
 #from gym_super_mario_bros.actions import RIGHT_ONLY
-from src.actions import COMPLEX_MOVEMENT
+from src.actions import FOR_DEBUG
 import math
 #import random
 
@@ -27,7 +27,7 @@ except:
     xrange = range
 
 env = gym_super_mario_bros.make('SuperMarioBros-v0')
-env = BinarySpaceToDiscreteSpaceEnv(env, COMPLEX_MOVEMENT)
+env = BinarySpaceToDiscreteSpaceEnv(env, FOR_DEBUG)
 
 gamma = 0.99
 
@@ -42,7 +42,7 @@ def discount_rewards(r):
 
 
 class agent():
-    def __init__(self, lr, s_size, s_size2, a_size,h_size):
+    def __init__(self, lr, a_size):
         #These lines established the feed-forward part of the network. The agent takes a state and produces an action.
         #WA : changed number of parameter from the originial code,
         #self.state_in= tf.placeholder(shape=[None,s_size, s_size2],dtype=tf.float32, name = 'agent_state_in')
@@ -65,8 +65,9 @@ class agent():
             L4 = tf.matmul(L4, W4)
             L4 = tf.nn.relu(L4)
         with tf.name_scope('output'):
-            W5 = tf.Variable(tf.random_normal([512, 9], stddev=0.01, name = 'W5'))
+            W5 = tf.Variable(tf.random_normal([512, a_size], stddev=0.01, name = 'W5'))
             self.output = tf.nn.softmax(tf.nn.relu(tf.matmul(L4, W5)))
+        self.W1_show = W1
         #L4 = tf.nn.dropout(L4, keep_prob)
         #hidden = slim.fully_connected(self.state_in,h_size,biases_initializer=None,activation_fn=tf.nn.relu)
         #self.output = slim.fully_connected(hidden,a_size,activation_fn=tf.nn.softmax,biases_initializer=None)
@@ -91,12 +92,13 @@ class agent():
             self.loss = -tf.reduce_mean(tf.log(self.responsible_outputs)*self.reward_holder)
             optimizer = tf.train.AdamOptimizer(learning_rate=lr)
             self.update_batch = optimizer.apply_gradients(zip(self.gradient_holders,tvars))
+            self.gradients = tf.gradients(self.loss,tvars)
             tf.summary.scalar('loss', self.loss)
-        self.gradients = tf.gradients(self.loss,tvars)
+
 
 tf.reset_default_graph() #Clear the Tensorflow graph.
 
-myAgent = agent(lr=1e-2,s_size=84,s_size2=84, a_size=9,h_size=8) #Load the agent.
+myAgent = agent(lr=1e-2,a_size=2) #Load the agent.
 #WA : changed the parameter from original code
 
 total_episodes = 5000 #Set total number of episodes to train agent on.
@@ -104,10 +106,16 @@ max_ep = 999
 update_frequency = 5
 
 init = tf.global_variables_initializer()
-
 # Launch the tensorflow graph
 with tf.Session() as sess:
-    sess.run(init)
+    saver = tf.train.Saver(tf.global_variables())
+    ckpt = tf.train.get_checkpoint_state('./model')
+    if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
+        saver.restore(sess, ckpt.model_checkpoint_path)
+    else:
+        sess.run(init)
+
+    writer = tf.summary.FileWriter('./log/20190128-1', sess.graph)
     i = 0
     total_reward = []
     total_lenght = []
@@ -118,12 +126,19 @@ with tf.Session() as sess:
     while i < total_episodes:
         s = env.reset()
         s = preprocess(s)
+        d = False
         running_reward = 0
         ep_history = []
         for j in range(max_ep):
+            if d == True:
+                print('handled exception')
+                break
             #Probabilistically pick an action given our network outputs.
-            a_dist = sess.run(myAgent.output,feed_dict={myAgent.state_in:[s]})
+            merged = tf.summary.merge_all()
+            a_dist = sess.run(myAgent.output, feed_dict={myAgent.state_in:[s]})
+            #summary = sess.run(merged, feed_dict={myAgent.state_in:[s]})
             #print(np.shape(a_dist)) #print shape for check
+            #writer.add_summary(summary, global_step = sess.run(global_step))
             a = np.random.choice(a_dist[0], p = a_dist[0])
             a = np.argmax(a_dist == a)
 
@@ -134,11 +149,17 @@ with tf.Session() as sess:
             running_reward += r
             if d == True:
                 #Update the network.
+                print(myAgent.W1s, ', Updated')
                 ep_history = np.array(ep_history)
                 ep_history[:,2] = discount_rewards(ep_history[:,2])
                 feed_dict={myAgent.reward_holder:ep_history[:,2],
                         myAgent.action_holder:ep_history[:,1],myAgent.state_in:np.vstack(ep_history[:,0])}
-                grads = sess.run(myAgent.gradients, feed_dict=feed_dict)
+                try:
+                    summary, grads = sess.run([merged, myAgent.gradients], feed_dict=feed_dict)
+                    writer.add_summary(summary, global_step = sess.run(global_step))
+                except:
+                    print('Hmm')
+                    continue
                 for idx,grad in enumerate(grads):
                     gradBuffer[idx] += grad
 
@@ -158,3 +179,5 @@ with tf.Session() as sess:
         if (i % 10 == 0) and i != 0:
             print(np.mean(total_reward[-100:]))
         i += 1
+
+        saver.save(sess, './model/MarioExDebug.ckpt', global_step=global_step)
