@@ -40,12 +40,14 @@ def discount_rewards(r):
         discounted_r[t] = running_add
     return discounted_r
 
+global_step = tf.Variable(0, trainable=False, name='global_step')
 
 class agent():
     def __init__(self, lr, a_size):
         #These lines established the feed-forward part of the network. The agent takes a state and produces an action.
         #WA : changed number of parameter from the originial code,
         #self.state_in= tf.placeholder(shape=[None,s_size, s_size2],dtype=tf.float32, name = 'agent_state_in')
+        self.stepcount = tf.Variable(0, trainable = False, name = 'stepcount')
         self.state_in = tf.placeholder(tf.float32, [None, 84, 84, 1], name = 'state_in')
         with tf.name_scope('layer1'):
             W1 = tf.Variable(tf.random_normal([8, 8, 1, 32], stddev=0.01, name = 'W1'))
@@ -67,7 +69,7 @@ class agent():
         with tf.name_scope('output'):
             W5 = tf.Variable(tf.random_normal([512, a_size], stddev=0.01, name = 'W5'))
             self.output = tf.nn.softmax(tf.nn.relu(tf.matmul(L4, W5)))
-        self.W1_show = W1
+        #self.W1_show = W1
         #L4 = tf.nn.dropout(L4, keep_prob)
         #hidden = slim.fully_connected(self.state_in,h_size,biases_initializer=None,activation_fn=tf.nn.relu)
         #self.output = slim.fully_connected(hidden,a_size,activation_fn=tf.nn.softmax,biases_initializer=None)
@@ -91,7 +93,7 @@ class agent():
         with tf.name_scope('optimizer'):
             self.loss = -tf.reduce_mean(tf.log(self.responsible_outputs)*self.reward_holder)
             optimizer = tf.train.AdamOptimizer(learning_rate=lr)
-            self.update_batch = optimizer.apply_gradients(zip(self.gradient_holders,tvars))
+            self.update_batch = optimizer.apply_gradients(zip(self.gradient_holders,tvars), global_step = self.stepcount)
             self.gradients = tf.gradients(self.loss,tvars)
             tf.summary.scalar('loss', self.loss)
 
@@ -149,17 +151,26 @@ with tf.Session() as sess:
             running_reward += r
             if d == True:
                 #Update the network.
-                print(myAgent.W1s, ', Updated')
+                #print(myAgent.W1_show, ', Updated')
                 ep_history = np.array(ep_history)
                 ep_history[:,2] = discount_rewards(ep_history[:,2])
                 feed_dict={myAgent.reward_holder:ep_history[:,2],
-                        myAgent.action_holder:ep_history[:,1],myAgent.state_in:np.vstack(ep_history[:,0])}
+                        myAgent.action_holder:ep_history[:,1],myAgent.state_in:np.reshape(np.vstack(ep_history[:,0]),[j+1,84,84,1])}
+                """
                 try:
                     summary, grads = sess.run([merged, myAgent.gradients], feed_dict=feed_dict)
-                    writer.add_summary(summary, global_step = sess.run(global_step))
+                    writer.add_summary(summary, global_step = sess.run(myAgent.stepcount))
                 except:
                     print('Hmm')
-                    continue
+                    break
+                """
+                print('step : %d', j)
+                print(np.shape(ep_history))
+                print(np.shape(ep_history[:,0]))
+                print(np.shape(np.vstack(ep_history[:,0])))
+                print(np.shape(np.reshape(np.vstack(ep_history[:,0]), [j+1,84,84,1])))
+                summary, grads = sess.run([merged, myAgent.gradients], feed_dict=feed_dict)
+                writer.add_summary(summary, global_step = sess.run(myAgent.stepcount))
                 for idx,grad in enumerate(grads):
                     gradBuffer[idx] += grad
 
@@ -180,4 +191,5 @@ with tf.Session() as sess:
             print(np.mean(total_reward[-100:]))
         i += 1
 
-        saver.save(sess, './model/MarioExDebug.ckpt', global_step=global_step)
+        saver.save(sess, './model/MarioExDebug.ckpt', global_step = myAgent.stepcount)
+
