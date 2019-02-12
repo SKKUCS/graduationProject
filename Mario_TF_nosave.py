@@ -31,6 +31,7 @@ env = BinarySpaceToDiscreteSpaceEnv(env, FOR_DEBUG)
 
 gamma = 0.99
 
+
 def discount_rewards(r):
     """ take 1D float array of rewards and compute discounted reward """
     discounted_r = np.zeros_like(r)
@@ -40,7 +41,6 @@ def discount_rewards(r):
         discounted_r[t] = running_add
     return discounted_r
 
-global_step = tf.Variable(0, trainable=False, name='global_step')
 
 class agent():
     def __init__(self, lr, a_size):
@@ -69,9 +69,7 @@ class agent():
         with tf.name_scope('output'):
             W5 = tf.Variable(tf.random_normal([512, a_size], stddev=0.01, name = 'W5'))
             self.output = tf.nn.softmax(tf.nn.relu(tf.matmul(L4, W5)))
-        #self.W1_show = W1
         #L4 = tf.nn.dropout(L4, keep_prob)
-        #hidden = slim.fully_connected(self.state_in,h_size,biases_initializer=None,activation_fn=tf.nn.relu)
         #self.output = slim.fully_connected(hidden,a_size,activation_fn=tf.nn.softmax,biases_initializer=None)
         self.chosen_action = tf.argmax(self.output,1)
 
@@ -93,7 +91,7 @@ class agent():
         with tf.name_scope('optimizer'):
             self.loss = -tf.reduce_mean(tf.log(self.responsible_outputs)*self.reward_holder)
             optimizer = tf.train.AdamOptimizer(learning_rate=lr)
-            self.update_batch = optimizer.apply_gradients(zip(self.gradient_holders,tvars), global_step = self.stepcount)
+            self.update_batch = optimizer.apply_gradients(zip(self.gradient_holders,tvars))
             self.gradients = tf.gradients(self.loss,tvars)
             tf.summary.scalar('loss', self.loss)
 
@@ -110,14 +108,15 @@ update_frequency = 5
 init = tf.global_variables_initializer()
 # Launch the tensorflow graph
 with tf.Session() as sess:
+    '''
     saver = tf.train.Saver(tf.global_variables())
     ckpt = tf.train.get_checkpoint_state('./model')
     if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
         saver.restore(sess, ckpt.model_checkpoint_path)
     else:
         sess.run(init)
-
-    writer = tf.summary.FileWriter('./log/20190128-1', sess.graph)
+    '''
+    sess.run(init)
     i = 0
     total_reward = []
     total_lenght = []
@@ -136,7 +135,7 @@ with tf.Session() as sess:
                 print('handled exception')
                 break
             #Probabilistically pick an action given our network outputs.
-            merged = tf.summary.merge_all()
+            #merged = tf.summary.merge_all()
             a_dist = sess.run(myAgent.output, feed_dict={myAgent.state_in:[s]})
             #summary = sess.run(merged, feed_dict={myAgent.state_in:[s]})
             #print(np.shape(a_dist)) #print shape for check
@@ -169,8 +168,8 @@ with tf.Session() as sess:
                 print(np.shape(ep_history[:,0]))
                 print(np.shape(np.vstack(ep_history[:,0])))
                 print(np.shape(np.reshape(np.vstack(ep_history[:,0]), [j+1,84,84,1])))
-                summary, grads = sess.run([merged, myAgent.gradients], feed_dict=feed_dict)
-                writer.add_summary(summary, global_step = sess.run(myAgent.stepcount))
+                grads = sess.run(myAgent.gradients, feed_dict=feed_dict)
+                #writer.add_summary(summary, global_step = sess.run(myAgent.stepcount))
                 for idx,grad in enumerate(grads):
                     gradBuffer[idx] += grad
 
@@ -191,5 +190,5 @@ with tf.Session() as sess:
             print(np.mean(total_reward[-100:]))
         i += 1
 
-        saver.save(sess, './model/MarioExDebug.ckpt', global_step = myAgent.stepcount)
+        #saver.save(sess, './model/MarioExDebug.ckpt', global_step = myAgent.stepcount)
 
