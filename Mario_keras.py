@@ -6,14 +6,18 @@ from keras.layers     import Dense, Conv2D, MaxPooling2D, Dropout, Flatten
 from keras.optimizers import Adam
 from nes_py.wrappers import BinarySpaceToDiscreteSpaceEnv
 import gym_super_mario_bros
-from src.actions import FOR_DEBUG
+#from src.actions import FOR_DEBUG
+from src.actions import RIGHT_ONLY
 
 env = gym_super_mario_bros.make('SuperMarioBros-v0')
-env = BinarySpaceToDiscreteSpaceEnv(env, FOR_DEBUG)
+#env = BinarySpaceToDiscreteSpaceEnv(env, FOR_DEBUG)
+env = BinarySpaceToDiscreteSpaceEnv(env, RIGHT_ONLY)
+ACTION_SIZE = 5
 env.reset()
 goal_steps = 50
 score_requirement = 5
-initial_games = 10
+initial_games = 20
+
 
 
 def to_grayscale(img):
@@ -54,7 +58,7 @@ def model_data_preparation():
         game_memory = []
         previous_observation = []
         for step_index in range(goal_steps):
-            action = random.randrange(0, 2)
+            action = random.randrange(0, ACTION_SIZE)
             observation, reward, done, info = env.step(action)
             observation = preprocess(observation)
             if len(previous_observation) > 0:
@@ -66,10 +70,8 @@ def model_data_preparation():
         if score >= score_requirement:
             accepted_scores.append(score)
             for data in game_memory:
-                if data[1] == 1:
-                    output = [0, 1]
-                elif data[1] == 0:
-                    output = [1, 0]
+                output = [0 for _ in range(ACTION_SIZE)]
+                output[data[1]] = 1
                 training_data.append([data[0], output])
         env.reset()
     print(accepted_scores)
@@ -88,7 +90,7 @@ for each_game in range(100):
     for step_index in range(goal_steps):
         env.render()
         if len(prev_obs) == 0:
-            action = random.randrange(0, 2)
+            action = random.randrange(0, ACTION_SIZE)
         else:
             action = np.argmax(trained_model.predict(prev_obs.reshape(-1, 84, 84, 1))[0])
 
@@ -105,7 +107,8 @@ for each_game in range(100):
 
 print(scores)
 print('Average Score:', sum(scores) / len(scores))
-print('choice 1:{}  choice 0:{}'.format(choices.count(1) / len(choices), choices.count(0) / len(choices)))
+for i in range(ACTION_SIZE):
+    print('choice {}:{}'.format(i, choices.count(i) / len(choices)),end="  ")
 
 '''
 for step_index in range(1000):
