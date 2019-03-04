@@ -90,7 +90,7 @@ if __name__ == "__main__":
     env = gym_super_mario_bros.make('SuperMarioBros-v0')
     env = BinarySpaceToDiscreteSpaceEnv(env, COMPLEX_MOVEMENT)
     agent = DQNAgent(state_size, action_size)
-    agent.load("./save/mario_keras2.h5")
+    agent.load("./save/mario_DQN.h5")
     done = False
     batch_size = 1000
 
@@ -126,4 +126,4 @@ if __name__ == "__main__":
         agent.replay(batch_size)
 
         if e % 1 == 0:
-             agent.save("./save/mario_keras2.h5")
+             agent.save("./save/mario_DQN.h5")
