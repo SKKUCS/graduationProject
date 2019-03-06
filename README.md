@@ -7,3 +7,4 @@
 `pip3 install baselines`
 `pip3 install gym-pull`
 `pip3 install gym-super-mario-bros`
+`pip3 install keras`
