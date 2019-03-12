@@ -13,7 +13,6 @@ REALLY_RIGHT_ONLY = [
     ['right', 'A', 'B'],
 ]
 COMPLEX_MOVEMENT = [
-    ['NOP'],
     ['right'],
     ['right', 'A'],
     ['right', 'B'],
@@ -27,3 +26,19 @@ FOR_DEBUG = [
     ['NOP'],
     ['right'],
 ]
+REALLY_COMPLEX_MOVEMENT = [
+    ['NOP'],
+    ['right'],
+    ['right', 'A'],
+    ['right', 'B'],
+    ['right', 'A', 'B'],
+    ['left'],
+    ['left', 'A'],
+    ['left', 'B'],
+    ['left', 'A', 'B'],
+    ['A'],
+    ['B'],
+    ['A', 'B'],
+    ['down'],
+]
+
