@@ -14,7 +14,7 @@ from src.actions import COMPLEX_MOVEMENT
 
 
 
-action_size = 9
+action_size = 8
 EPISODES = 50000
 memory_len = 2000
 
