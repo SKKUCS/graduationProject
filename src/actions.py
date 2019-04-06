@@ -27,7 +27,7 @@ FOR_DEBUG = [
     ['right'],
 ]
 REALLY_COMPLEX_MOVEMENT = [
-    ['NOP'],
+    ['NOOP'],
     ['right'],
     ['right', 'A'],
     ['right', 'B'],
