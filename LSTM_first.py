@@ -258,7 +258,8 @@ class Agent(threading.Thread):
             while not done:
                 # Rendering code
                 # Seems to be causing error in Mac OS
-                #env.render()
+                if self.thread_count==1:
+                    env.render()
                 step += 1
                 self.t += 1
 
