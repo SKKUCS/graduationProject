@@ -29,8 +29,8 @@ action_size = 13
 # Initialize Global Variables
 global episode
 episode = 0
-global thread_num
-thread_num = 1
+global thread_count
+thread_count = 1
 EPISODES = 8000000
 
 
@@ -46,15 +46,18 @@ class A3CAgent:
         self.actor_lr = 0.001
         self.critic_lr = 0.001
         # Number of Threads
-        self.threads = 1
+        self.threads = 2
         # Loading model weights
-        self.if_load_model = False
+        self.if_load_model = True
         # Building Global Network
         self.actor, self.critic = self.build_model()
 
         if self.if_load_model:
-            self.load_model('./save/Mario_A3C_DQN_LSTM')
-            print('Weight Loaded')
+            try:
+                self.load_model('./save/Mario_LSTM')
+                print('Weight Loaded')
+            except FileNotFoundError:
+                print('Weight not found')
 
         # Customized optimizer for entropy calculation
         self.optimizer = [self.actor_optimizer(), self.critic_optimizer()]
@@ -67,7 +70,7 @@ class A3CAgent:
         self.summary_placeholders, self.update_ops, self.summary_op = \
             self.setup_summary()
         self.summary_writer = \
-            tf.summary.FileWriter('summary/Mario_A3C_DQN_LSTM', self.sess.graph)
+            tf.summary.FileWriter('summary/Mario_LSTM', self.sess.graph)
 
     # Activating thread for training
     def train(self):
@@ -87,7 +90,7 @@ class A3CAgent:
         # Save model every 10 min(60 sec)
         while True:
             time.sleep(60 * 10)
-            self.save_model("./save/Mario_A3C_DQN_LSTM")
+            self.save_model("./save/Mario_LSTM")
             print('weight saved:', time.localtime())
 
     # Building policy and value network
@@ -192,9 +195,7 @@ class A3CAgent:
         summary_op = tf.summary.merge_all()
         return summary_placeholders, update_ops, summary_op
 
-    def reset_lstm_state(self):
-        self.actor.reset_states()
-        self.critic.reset_states()
+
 
 
 # Actor-Runner class(Thread)
@@ -204,21 +205,15 @@ class Agent(threading.Thread):
         threading.Thread.__init__(self)
 
         # Inherit from A3CAgent
-        global thread_num
-        self.thread_num = thread_num
-        thread_num += 1
+        global thread_count
+        self.thread_count = thread_count
+        thread_count += 1
         self.action_size = action_size
         self.state_size = state_size
         self.actor, self.critic = model
         self.sess = sess
         self.optimizer = optimizer
         self.discount_factor = discount_factor
-
-        # Epsilon for greedy epsilon method
-        # Seems to be not needed
-        self.epsilon = 1.0
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 0.995
 
         [self.summary_op, self.summary_placeholders,
          self.update_ops, self.summary_writer] = summary_ops
@@ -250,18 +245,20 @@ class Agent(threading.Thread):
             score = 0
             state = env.reset()
 
+            '''
             # Making initial history with random actions
+            # Seems to be not need in LSTM
             for _ in range(5):
                 next_state = state
                 state, _, _, _ = env.step(random.randint(0, 12))
-
+            '''
             state = crop_img(state)
             state = np.reshape([state], (1, 88, 128, 3))
 
             while not done:
                 # Rendering code
                 # Seems to be causing error in Mac OS
-                env.render()
+                #env.render()
                 step += 1
                 self.t += 1
 
@@ -287,10 +284,10 @@ class Agent(threading.Thread):
                 if no_progress == 300:
                     done = True
                     reward -= 1
-                    print("#",self.thread_num, " STUCK")
+                    print("#",self.thread_count, " STUCK")
                 # Preprocessing each states
-                next_state = crop_img(next_state)
-                next_state = np.reshape([next_state], (1, 88, 128, 3))
+                #next_state = crop_img(next_state)
+                next_state = np.reshape([crop_img(next_state)], (1, 88, 128, 3))
 
 
                 # Average policy max value
@@ -313,8 +310,8 @@ class Agent(threading.Thread):
                     # Recording training information
 
                     episode += 1
-                    print("#", self.thread_num, "  episode:", episode, "  score:", format(score, '.2f'), "  step:",
-                          step, "max_x :", max_x, "  policy ", policy)
+                    print("#", self.thread_count, "  episode:", episode, "  score:", format(score, '.2f'), "  step:",
+                          step, "max_x :", max_x)
 
                     stats = [score, self.avg_p_max / float(step),
                              step]
@@ -327,10 +324,6 @@ class Agent(threading.Thread):
                     self.avg_p_max = 0
                     self.avg_loss = 0
                     step = 0
-                    '''
-                    if self.epsilon > self.epsilon_min:
-                        self.epsilon *= self.epsilon_decay
-                    '''
 
     # Calculating discounted prediction for future reward
     def discounted_prediction(self, rewards, done):
@@ -409,15 +402,6 @@ class Agent(threading.Thread):
         np.random.seed(random.randint(0, 100))
         action_index = np.random.choice(self.action_size, 1, p=policy)[0]
         return action_index, policy
-
-    # Using Epsilon-greedy method, but seems to be not needed
-    def get_action2(self, state):
-        state = np.float32(state / 255.0)
-        policy = self.local_actor.predict(state)[0]
-        if np.random.rand() <= self.epsilon:
-            return random.randrange(self.action_size), policy
-        action_index = np.random.choice(self.action_size, 1, p=policy)[0]
-        return action_index, policy  # returns action
 
     # Appending sample
     def append_sample(self, state, action, reward):
