@@ -46,12 +46,12 @@ class A3CAgent:
         self.actor_lr = 0.001
         self.critic_lr = 0.001
         # Number of Threads
-        self.threads = 2
+        self.threads = 4
         # Loading model weights
         self.if_load_model = True
         # Building Global Network
         self.actor, self.critic = self.build_model()
-
+        global episode
         if self.if_load_model:
             try:
                 self.load_model('./save/Mario_LSTM')
@@ -247,7 +247,7 @@ class Agent(threading.Thread):
 
             '''
             # Making initial history with random actions
-            # Seems to be not need in LSTM
+            # Seems to be not needed in LSTM
             for _ in range(5):
                 next_state = state
                 state, _, _, _ = env.step(random.randint(0, 12))
@@ -258,17 +258,18 @@ class Agent(threading.Thread):
             while not done:
                 # Rendering code
                 # Seems to be causing error in Mac OS
-                if self.thread_count==1:
-                    env.render()
+                #if self.thread_count==1:
+                    #env.render()
                 step += 1
                 self.t += 1
 
                 action, policy = self.get_action(state)
 
-                # Taking 3 steps with selected action
+                # Taking 6 steps with selected action
                 # Mimicking frame skip
-                for _ in range(3):
+                for _ in range(6):
                     next_state, reward, done, info = env.step(action)
+                    score += reward
                     if done:
                         break
 
@@ -282,7 +283,7 @@ class Agent(threading.Thread):
                     no_progress = 0
                 else:
                     no_progress += 1
-                if no_progress == 300:
+                if no_progress == 100:
                     done = True
                     reward -= 1
                     print("#",self.thread_count, " STUCK")
