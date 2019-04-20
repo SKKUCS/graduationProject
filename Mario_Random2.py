@@ -14,7 +14,7 @@ env = BinarySpaceToDiscreteSpaceEnv(env, REALLY_RIGHT_ONLY)
 def to_grayscale(img):
     return np.mean(img, axis=2).astype(np.uint8)
 def downsample(img):
-    return img[47:223, 0:256]
+    return img[47:223:2, 0:256:2]
 def preprocess(img):
     return to_grayscale(downsample(img))
 def to_grayscale2(img):
@@ -42,11 +42,11 @@ for step in range(1):
 
     #print(state)
     print(np.shape(state))
-    state = downsample(state)
+    state = preprocess(state)
     #print(state)
     print(np.shape(state))
     img = state
-    img = Image.fromarray(state, 'RGB')
+    img = Image.fromarray(state)
     img.save('my.png')
     img.show()
 

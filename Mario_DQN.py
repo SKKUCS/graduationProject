@@ -1,5 +1,5 @@
 import gym
-import random
+import math, random
 import numpy as np
 import tensorflow as tf
 from collections import deque
@@ -10,19 +10,20 @@ from keras.optimizers import Adam, RMSprop
 from nes_py.wrappers import BinarySpaceToDiscreteSpaceEnv
 import gym_super_mario_bros
 #from src.actions import FOR_DEBUG
-from src.actions import COMPLEX_MOVEMENT
+from src.actions import REALLY_COMPLEX_MOVEMENT
 
 
 
-action_size = 8
+action_size = 12
 EPISODES = 50000
-memory_len = 2000
-
-
+memory_len = 100000
+replay_start = 10000
+global_step = 0
+max_decay_step = 300000
 def to_grayscale(img):
     return np.mean(img, axis=2).astype(np.uint8)
 def downsample(img):
-    return img[48:216:2, 44:212:2]
+    return img[47:223:2, 0:256:2]
 def expand_dimension(img):
     return np.expand_dims(img, axis=2)
 def preprocess(img):
@@ -34,13 +35,13 @@ class DQNAgent:
     def __init__(self, action_size):
         self.render = True
         self.load_model = False
-        self.state_size = (84, 84, 4)
+        self.state_size = (88, 128, 4)
         self.action_size = action_size
         self.memory = deque(maxlen=memory_len)
-        self.gamma = 0.9    # discount rate
-        self.epsilon = 1.0  # exploration rate
+        self.gamma = 0.99    # discount rate
+        self.epsilon_max = 1.0  # exploration rate
         self.epsilon_min = 0.01
-        self.epsilon_decay = 0.995
+        self.epsilon_now = lambda global_step: self.epsilon_min + (self.epsilon_max - self.epsilon_min) * math.exp(-1. * global_step / max_decay_step)
         self.learning_rate = 0.001
         self.batch_size = 32
         self.model = self.build_model()
@@ -87,8 +88,8 @@ class DQNAgent:
     def build_model(self):
         model = Sequential()
         model.add(Conv2D(32, kernel_size=(8, 8), strides=(4, 4), activation='relu', input_shape=self.state_size))
-        model.add(Conv2D(64, kernel_size=(4, 4), strides=(2, 2), activation='relu'))
-        model.add(Conv2D(128, kernel_size=(2, 2), strides=(1, 1), activation='relu'))
+        model.add(Conv2D(32, kernel_size=(4, 4), strides=(2, 2), activation='relu'))
+        model.add(Conv2D(64, kernel_size=(3, 3), strides=(1, 1), activation='relu'))
         model.add(Flatten())
         model.add(Dense(512, activation='relu'))
         #model.add(Dense(action_size, activation='linear'))
@@ -101,9 +102,9 @@ class DQNAgent:
     def remember(self, history, action, reward, next_history, done):
         self.memory.append((history, action, reward, next_history, done))
 
-    def act(self, history):
+    def act(self, history, epsilon):
         history = np.float32(history / 255.0)
-        if np.random.rand() <= self.epsilon:
+        if np.random.rand() <= epsilon:
             return random.randrange(self.action_size)
         act_values = self.model.predict(history)
         return np.argmax(act_values[0])  # returns action
@@ -143,8 +144,6 @@ class DQNAgent:
 
         loss = self.optimizer([history, action, target])
         self.avg_loss += loss[0]
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
 
     def load(self, name):
         self.model.load_weights(name)
@@ -175,12 +174,13 @@ class DQNAgent:
 
 
 if __name__ == "__main__":
+   
     env = gym_super_mario_bros.make('SuperMarioBros-1-1-v0')
-    env = BinarySpaceToDiscreteSpaceEnv(env, COMPLEX_MOVEMENT)
+    env = BinarySpaceToDiscreteSpaceEnv(env, REALLY_COMPLEX_MOVEMENT)
     agent = DQNAgent(action_size)
 
 
-    total_rewards, episodes, global_step = [], [], 0
+    total_rewards, episodes = [], []
 
     for e in range(EPISODES):
         print('Episode #', e)
@@ -194,25 +194,32 @@ if __name__ == "__main__":
             start, _, _, _ = env.step(0)
         start = preprocess(start)
         history = np.stack((start, start, start, start), axis = 2)
-        history = np.reshape([history], (1, 84,84,4))
+        history = np.reshape([history], (1, 88, 128,4))
         while not done:
             if agent.render:
                 env.render()
             global_step += 1
             step += 1
-            action = agent.act(history)
-            next_state, reward, done, _ = env.step(action)
-            next_state = np.reshape(preprocess(next_state), (1,84,84,1))
+            step_reward = 0
+            epsilon = agent.epsilon_now(global_step)
+            action = agent.act(history, epsilon)
+            for _ in range(4):
+            	next_state, reward, done, _ = env.step(action)
+            	step_reward += reward
+            	total_reward += reward
+            	if done:
+            		break
+            next_state = np.reshape(preprocess(next_state), (1,88,128,1))
             next_history = np.append(next_state, history[:, :, :, :3], axis=3)
 
             agent.avg_q_max += np.amax(
                 agent.model.predict(np.float32(history / 255.))[0])
 
-            reward = reward if not done else -10
+            
             total_reward += reward
             #next_state = np.reshape(next_state, [1, state_size])
-            agent.remember(history, action, reward, next_history, done)
-            if len(agent.memory) >= memory_len:
+            agent.remember(history, action, step_reward, next_history, done)
+            if len(agent.memory) > replay_start:
                 agent.replay()
                 #print('now replaying, mem ', len(agent.memory))
             history = next_history
@@ -228,7 +235,7 @@ if __name__ == "__main__":
                     agent.summary_writer.add_summary(summary_str, e + 1)
 
                 print("episode:", e, "  total reward :", total_reward, "  memory length:",
-                      len(agent.memory), "  epsilon:", agent.epsilon,
+                      len(agent.memory), "  epsilon:", epsilon,
                       "  global_step:", global_step, "  average_q:",
                       agent.avg_q_max / float(step), "  average loss:",
                       agent.avg_loss / float(step))
@@ -245,5 +252,6 @@ if __name__ == "__main__":
                 '''
 
 
-        if e % 100 == 0:
+        if e % 100 == 1:
              agent.save("./save/mario_DQN.h5")
+             print('weight saved')

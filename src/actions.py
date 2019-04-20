@@ -39,6 +39,5 @@ REALLY_COMPLEX_MOVEMENT = [
     ['A'],
     ['B'],
     ['A', 'B'],
-    ['down'],
 ]
 

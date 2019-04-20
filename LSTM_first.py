@@ -46,18 +46,13 @@ class A3CAgent:
         self.actor_lr = 0.001
         self.critic_lr = 0.001
         # Number of Threads
-        self.threads = 4
+        self.threads = 8
         # Loading model weights
-        self.if_load_model = True
+        self.if_load_model = False
         # Building Global Network
         self.actor, self.critic = self.build_model()
         global episode
-        if self.if_load_model:
-            try:
-                self.load_model('./save/Mario_LSTM')
-                print('Weight Loaded')
-            except FileNotFoundError:
-                print('Weight not found')
+
 
         # Customized optimizer for entropy calculation
         self.optimizer = [self.actor_optimizer(), self.critic_optimizer()]
@@ -66,7 +61,12 @@ class A3CAgent:
         self.sess = tf.InteractiveSession()
         K.set_session(self.sess)
         self.sess.run(tf.global_variables_initializer())
-
+        if self.if_load_model:
+            try:
+                self.load_model('./save/Mario_LSTM')
+                print('Weight Loaded')
+            except FileNotFoundError:
+                print('Weight not found')
         self.summary_placeholders, self.update_ops, self.summary_op = \
             self.setup_summary()
         self.summary_writer = \
@@ -283,7 +283,7 @@ class Agent(threading.Thread):
                     no_progress = 0
                 else:
                     no_progress += 1
-                if no_progress == 100:
+                if no_progress == 200:
                     done = True
                     reward -= 1
                     print("#",self.thread_count, " STUCK")
