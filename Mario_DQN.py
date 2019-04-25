@@ -16,10 +16,10 @@ from src.actions import REALLY_COMPLEX_MOVEMENT
 
 action_size = 12
 EPISODES = 50000
-memory_len = 100000
+memory_len = 200000
 replay_start = 10000
 global_step = 0
-max_decay_step = 300000
+max_decay_step = 1000000
 def to_grayscale(img):
     return np.mean(img, axis=2).astype(np.uint8)
 def downsample(img):
@@ -34,7 +34,7 @@ def preprocess(img):
 class DQNAgent:
     def __init__(self, action_size):
         self.render = True
-        self.load_model = False
+        self.load_model = True
         self.state_size = (88, 128, 4)
         self.action_size = action_size
         self.memory = deque(maxlen=memory_len)
@@ -91,7 +91,7 @@ class DQNAgent:
         model.add(Conv2D(32, kernel_size=(4, 4), strides=(2, 2), activation='relu'))
         model.add(Conv2D(64, kernel_size=(3, 3), strides=(1, 1), activation='relu'))
         model.add(Flatten())
-        model.add(Dense(512, activation='relu'))
+        model.add(Dense(256, activation='relu'))
         #model.add(Dense(action_size, activation='linear'))
         model.add(Dense(action_size))
         #model.compile(loss='mse', optimizer=Adam())
