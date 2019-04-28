@@ -6,6 +6,8 @@ import math
 import random
 import numpy as np
 from PIL import Image
+from collections import deque
+
 
 env = gym_super_mario_bros.make('SuperMarioBros-1-1-v0')
 env = BinarySpaceToDiscreteSpaceEnv(env, REALLY_RIGHT_ONLY)
@@ -22,11 +24,14 @@ def to_grayscale2(img):
     #grayscale with ITU-R 601-2 luma transformation
 def preprocess2(img):
     return downsample(to_grayscale2(img))
+def expand_dimension(img):
+    return np.expand_dims(img, axis=2)
 env.reset()
 max_x = 0
 cnt = 1
 lastreward = 0
 life = 2
+memory = deque(maxlen=3)
 for step in range(300):
     state, reward, done, info = env.step(1)
     env.render()
@@ -45,17 +50,22 @@ for step in range(300):
     f = np.reshape(f, (1, 2, 3, 1))
     history = np.stack((a, b, c, d), axis = 3)
     history = np.reshape([history], (1, 2, 3, 4))
-
     history2 = np.append(history[:, :, :, 1:4], e, axis=3)
     history3 = np.append(history2[:, :, :, 1:4], f, axis=3)
 
-
     if done:
+        memory.append((history, reward, '2', history2))
+        memory.append((history2, reward, '2', history3))
+        replay_history = np.zeros((2, 2, 3, 4))
+        for i in range(2):
+            replay_history[i] = memory[i][0]
         print(a)
         print(history)
         print(history2)
         print(history3)
         print(reward)
+        print(replay_history[0])
+        print(replay_history[1])
         img = state
         img = Image.fromarray(state, 'RGB')
         img.save('ori.png')
@@ -65,6 +75,11 @@ for step in range(300):
         img2 = preprocess(state)
         img2 = Image.fromarray(img2)
         img2.save('grayscale2.png')
+        test1 = expand_dimension(img1)
+        print(test1)
+        print(np.shape(test1))
+        test2=np.reshape(test1, (1,88,128,1))
+        print(test2)
         break
 """
     img = state
@@ -99,3 +114,4 @@ for step in range(300):
         print(step)
 """
 env.close()
+
