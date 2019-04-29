@@ -38,7 +38,7 @@ def preprocess2(img):
 class DQNAgent:
     def __init__(self, action_size):
         self.render = True
-        self.load_model = False
+        self.load_model = True
         self.state_size = (88, 128, 4)
         self.action_size = action_size
         self.memory = deque(maxlen=memory_len)
@@ -201,7 +201,7 @@ if __name__ == "__main__":
             step_reward = 0
             epsilon = agent.epsilon_now(e)
             action = agent.act(history, epsilon)
-            for _ in range(6):
+            for _ in range(8):
                 next_state, reward, done, _ = env.step(action)
                 step_reward += reward
                 total_reward += reward
