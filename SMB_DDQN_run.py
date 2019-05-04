@@ -4,13 +4,12 @@ import numpy as np
 import tensorflow as tf
 from collections import deque
 from keras import backend as K
-from keras.models     import Sequential
-from keras.layers     import Dense, Conv2D, MaxPooling2D, Dropout, Flatten
+from keras.models import Sequential
+from keras.layers import Dense, Conv2D, MaxPooling2D, Dropout, Flatten
 from keras.optimizers import Adam, RMSprop
 from nes_py.wrappers import BinarySpaceToDiscreteSpaceEnv
 import gym_super_mario_bros
 from src.actions import REALLY_COMPLEX_MOVEMENT
-
 
 action_size = 12
 EPISODES = 50000
@@ -19,40 +18,50 @@ replay_start = 20000
 global_step = 0
 max_decay_ep = 10000
 
+
 def to_grayscale(img):
     return np.mean(img, axis=2).astype(np.uint8)
+
+
 def to_grayscale2(img):
-    return np.dot(img[...,:3], [0.299, 0.587, 0.114]).astype(np.uint8)
-    #grayscale with ITU-R 601-2 luma transformation
+    return np.dot(img[..., :3], [0.299, 0.587, 0.114]).astype(np.uint8)
+    # grayscale with ITU-R 601-2 luma transformation
+
+
 def downsample(img):
     return img[47:223:2, 0:256:2]
+
+
 def expand_dimension(img):
     return np.expand_dims(img, axis=2)
+
+
 def preprocess(img):
     return expand_dimension(to_grayscale(downsample(img)))
+
+
 def preprocess2(img):
     return expand_dimension(to_grayscale2(downsample(img)))
-
 
 
 class DQNAgent:
     def __init__(self, action_size):
         self.render = True
-        self.load_model = False
+        self.load_model = True
         self.state_size = (88, 128, 4)
         self.action_size = action_size
         self.memory = deque(maxlen=memory_len)
-        self.gamma = 0.99    # discount rate
+        self.gamma = 0.9  # discount rate
         self.epsilon_max = 1.0  # exploration rate
         self.epsilon_min = 0.05
         self.epsilon_now = lambda episode: self.epsilon_min + \
-                                     (self.epsilon_max - self.epsilon_min) * math.exp(-1. * episode / max_decay_ep)
+                                           (self.epsilon_max - self.epsilon_min) * math.exp(
+            -1. * episode / max_decay_ep)
         self.learning_rate = 0.00025
         self.batch_size = 32
         self.update_freq = 10000
         self.model = self.build_model()
         self.target_model = self.build_model()
-
 
         self.optimizer = self.optimizer()
 
@@ -107,45 +116,10 @@ class DQNAgent:
     def update_target_model(self):
         self.target_model.set_weights(self.model.get_weights())
 
-    def remember(self, history, action, reward, next_history, done):
-        self.memory.append((history, action, reward, next_history, done))
-
-    def act(self, history, epsilon):
+    def act(self, history):
         _history = np.float32(history / 255.0)
-        _epsilon = epsilon
-        if np.random.rand() <= _epsilon:
-            return random.randrange(self.action_size)
         act_values = self.model.predict(history)
         return np.argmax(act_values[0])  # returns action
-
-    def replay(self):
-        mini_batch = random.sample(self.memory, self.batch_size)
-
-        replay_history = np.zeros((self.batch_size, self.state_size[0],
-                            self.state_size[1], self.state_size[2]))
-        replay_next_history = np.zeros((self.batch_size, self.state_size[0],
-                                 self.state_size[1], self.state_size[2]))
-        replay_target = np.zeros((self.batch_size,))
-        replay_action, replay_reward, replay_done = [], [], []
-
-        for i in range(self.batch_size):
-            replay_history[i] = np.float32(mini_batch[i][0] / 255.)
-            replay_next_history[i] = np.float32(mini_batch[i][3] / 255.)
-            replay_action.append(mini_batch[i][1])
-            replay_reward.append(mini_batch[i][2])
-            replay_done.append(mini_batch[i][4])
-
-        target_value = self.target_model.predict(replay_next_history)
-
-        for i in range(self.batch_size):
-            if replay_done[i]:
-                replay_target[i] = replay_reward[i]
-            else:
-                replay_target[i] = replay_reward[i] + self.gamma * \
-                            np.amax(target_value[i])
-
-        loss = self.optimizer([replay_history, replay_action, replay_target])
-        self.avg_loss += loss[0]
 
     def load(self, name):
         self.model.load_weights(name)
@@ -176,7 +150,7 @@ class DQNAgent:
 
 
 if __name__ == "__main__":
-   
+
     env = gym_super_mario_bros.make('SuperMarioBros-1-1-v0')
     env = BinarySpaceToDiscreteSpaceEnv(env, REALLY_COMPLEX_MOVEMENT)
     agent = DQNAgent(action_size)
@@ -187,7 +161,7 @@ if __name__ == "__main__":
         state = env.reset()
         step, total_reward = 0, 0
         done = False
-        for _ in range(5):
+        for _ in range(4):
             start, _, _, _ = env.step(0)
         start = preprocess2(start)
         start = np.reshape(start, (1, 88, 128, 1))
@@ -200,7 +174,7 @@ if __name__ == "__main__":
             step += 1
             step_reward = 0
             epsilon = agent.epsilon_now(e)
-            action = agent.act(history, epsilon)
+            action = agent.act(history)
             for _ in range(4):
                 next_state, reward, done, _ = env.step(action)
                 step_reward += reward
@@ -213,14 +187,8 @@ if __name__ == "__main__":
 
             agent.avg_q_max += np.amax(
                 agent.model.predict(np.float32(history / 255.))[0])
-            print(step_reward)
-
-            agent.remember(history, action, step_reward, next_history, done)
 
             history = next_history
-
-            if len(agent.memory) > replay_start:
-                agent.replay()
 
             if done:
                 if global_step >= 2000:
@@ -233,19 +201,8 @@ if __name__ == "__main__":
                     summary_str = agent.sess.run(agent.summary_op)
                     agent.summary_writer.add_summary(summary_str, e + 1)
 
-                print("Episode #", e, "  total reward :", format(total_reward, '.2f'), "  memory length:",
-                      len(agent.memory), "  epsilon:", format(epsilon, '.4f'),
+                print("Episode #", e, "  total reward :", format(total_reward, '.2f'),
                       "  global_step:", global_step, "  average_q:",
-                      format(agent.avg_q_max / float(step), '.4f'), "  average loss:",
-                      format(agent.avg_loss / float(step), '.4f'))
+                      format(agent.avg_q_max / float(step), '.4f'))
 
                 agent.avg_q_max, agent.avg_loss = 0, 0
-                # agent.update_target_model()
-
-            if global_step % agent.update_freq == 1:
-                agent.update_target_model()
-                # print("target updated")
-
-        if e % 100 == 1:
-            agent.save("./save/SMB_DQN.h5")
-            print('Weight Saved!')

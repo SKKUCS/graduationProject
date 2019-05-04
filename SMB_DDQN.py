@@ -15,7 +15,7 @@ from src.actions import REALLY_COMPLEX_MOVEMENT
 action_size = 12
 EPISODES = 50000
 memory_len = 200000
-replay_start = 20000
+replay_start = 32
 global_step = 0
 max_decay_ep = 10000
 
@@ -42,14 +42,14 @@ class DQNAgent:
         self.state_size = (88, 128, 4)
         self.action_size = action_size
         self.memory = deque(maxlen=memory_len)
-        self.gamma = 0.99    # discount rate
+        self.gamma = 0.9    # discount rate
         self.epsilon_max = 1.0  # exploration rate
         self.epsilon_min = 0.05
         self.epsilon_now = lambda episode: self.epsilon_min + \
                                      (self.epsilon_max - self.epsilon_min) * math.exp(-1. * episode / max_decay_ep)
         self.learning_rate = 0.00025
         self.batch_size = 32
-        self.update_freq = 10000
+        self.update_freq = 1000
         self.model = self.build_model()
         self.target_model = self.build_model()
 
@@ -121,12 +121,13 @@ class DQNAgent:
     def replay(self):
         mini_batch = random.sample(self.memory, self.batch_size)
 
-        replay_history = np.zeros((self.batch_size, self.state_size[0],
+        replay_history = np.zeros((self.batch_size, 1, self.state_size[0],
                             self.state_size[1], self.state_size[2]))
-        replay_next_history = np.zeros((self.batch_size, self.state_size[0],
+        replay_next_history = np.zeros((self.batch_size, 1, self.state_size[0],
                                  self.state_size[1], self.state_size[2]))
         replay_target = np.zeros((self.batch_size,))
-        replay_action, replay_reward, replay_done = [], [], []
+        replay_action, replay_reward, replay_done= [], [], []
+        target_action = np.zeros((self.batch_size,))
 
         for i in range(self.batch_size):
             replay_history[i] = np.float32(mini_batch[i][0] / 255.)
@@ -134,15 +135,21 @@ class DQNAgent:
             replay_action.append(mini_batch[i][1])
             replay_reward.append(mini_batch[i][2])
             replay_done.append(mini_batch[i][4])
+            target_act_values = self.model.predict(replay_next_history[i])
+            target_action[i] = np.int32(np.argmax(target_act_values[0]))
 
-        target_value = self.target_model.predict(replay_next_history)
-
+        
+        print('HERRRREEE')
+        print(target_action)
         for i in range(self.batch_size):
-            if replay_done[i]:
-                replay_target[i] = replay_reward[i]
-            else:
-                replay_target[i] = replay_reward[i] + self.gamma * \
-                            np.amax(target_value[i])
+        	target_value_list = self.target_model.predict(replay_next_history[i])
+        	target_value = target_value_list[0][target_action[i]]
+        	print(target_value)
+        	if replay_done[i]:
+        		replay_target[i] = replay_reward[i]
+        	else:
+        		replay_target[i] = replay_reward[i] + self.gamma * \
+                            target_value
 
         loss = self.optimizer([replay_history, replay_action, replay_target])
         self.avg_loss += loss[0]
@@ -187,7 +194,7 @@ if __name__ == "__main__":
         state = env.reset()
         step, total_reward = 0, 0
         done = False
-        for _ in range(5):
+        for _ in range(4):
             start, _, _, _ = env.step(0)
         start = preprocess2(start)
         start = np.reshape(start, (1, 88, 128, 1))
@@ -213,7 +220,6 @@ if __name__ == "__main__":
 
             agent.avg_q_max += np.amax(
                 agent.model.predict(np.float32(history / 255.))[0])
-            print(step_reward)
 
             agent.remember(history, action, step_reward, next_history, done)
 
