@@ -16,7 +16,7 @@ EPISODES = 50000
 memory_len = 200000
 replay_start = 20000
 global_step = 0
-max_decay_ep = 20000
+max_decay_ep = 10000
 
 
 def to_grayscale(img):
@@ -51,7 +51,7 @@ class DQNAgent:
         self.state_size = (88, 128, 4)
         self.action_size = action_size
         self.memory = deque(maxlen=memory_len)
-        self.gamma = 0.99  # discount rate
+        self.gamma = 0.9  # discount rate
         self.epsilon_max = 1.0  # exploration rate
         self.epsilon_min = 0.05
         self.epsilon_now = lambda episode: self.epsilon_min + \
@@ -106,10 +106,10 @@ class DQNAgent:
     def build_model(self):
         model = Sequential()
         model.add(Conv2D(32, kernel_size=(8, 8), strides=(4, 4), activation='relu', input_shape=self.state_size))
-        model.add(Conv2D(64, kernel_size=(4, 4), strides=(2, 2), activation='relu'))
-        model.add(Conv2D(128, kernel_size=(3, 3), strides=(1, 1), activation='relu'))
+        model.add(Conv2D(32, kernel_size=(4, 4), strides=(2, 2), activation='relu'))
+        model.add(Conv2D(64, kernel_size=(3, 3), strides=(1, 1), activation='relu'))
         model.add(Flatten())
-        model.add(Dense(512, activation='relu'))
+        model.add(Dense(256))
         model.add(Dense(action_size))
         return model
 
@@ -161,7 +161,7 @@ if __name__ == "__main__":
         state = env.reset()
         step, total_reward = 0, 0
         done = False
-        for _ in range(8):
+        for _ in range(4):
             start, _, _, _ = env.step(0)
         start = preprocess2(start)
         start = np.reshape(start, (1, 88, 128, 1))
@@ -175,7 +175,7 @@ if __name__ == "__main__":
             step_reward = 0
             epsilon = agent.epsilon_now(e)
             action = agent.act(history)
-            for _ in range(8):
+            for _ in range(4):
                 next_state, reward, done, _ = env.step(action)
                 step_reward += reward
                 total_reward += reward
