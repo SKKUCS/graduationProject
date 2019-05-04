@@ -15,7 +15,7 @@ from src.actions import REALLY_COMPLEX_MOVEMENT
 action_size = 12
 EPISODES = 50000
 memory_len = 200000
-replay_start = 32
+replay_start = 20000
 global_step = 0
 max_decay_ep = 10000
 
@@ -53,7 +53,6 @@ class DQNAgent:
         self.model = self.build_model()
         self.target_model = self.build_model()
 
-
         self.optimizer = self.optimizer()
 
         # Applying tensorboard
@@ -64,11 +63,11 @@ class DQNAgent:
         self.summary_placeholders, self.update_ops, self.summary_op = \
             self.setup_summary()
         self.summary_writer = tf.summary.FileWriter(
-            'summary/SMB_DQN', self.sess.graph)
+            'summary/SMB_DDQN', self.sess.graph)
         self.sess.run(tf.global_variables_initializer())
 
         if self.load_model:
-            self.model.load_weights("./save/SMB_DQN.h5")
+            self.model.load_weights("./save/SMB_DDQN.h5")
             print("Weight Loaded!")
 
         self.update_target_model()
@@ -121,7 +120,7 @@ class DQNAgent:
     def replay(self):
         mini_batch = random.sample(self.memory, self.batch_size)
 
-        replay_history = np.zeros((self.batch_size, 1, self.state_size[0],
+        replay_history = np.zeros((self.batch_size, self.state_size[0],
                             self.state_size[1], self.state_size[2]))
         replay_next_history = np.zeros((self.batch_size, 1, self.state_size[0],
                                  self.state_size[1], self.state_size[2]))
@@ -136,19 +135,15 @@ class DQNAgent:
             replay_reward.append(mini_batch[i][2])
             replay_done.append(mini_batch[i][4])
             target_act_values = self.model.predict(replay_next_history[i])
-            target_action[i] = np.int32(np.argmax(target_act_values[0]))
+            target_action[i] = np.argmax(target_act_values[0])
 
-        
-        print('HERRRREEE')
-        print(target_action)
         for i in range(self.batch_size):
-        	target_value_list = self.target_model.predict(replay_next_history[i])
-        	target_value = target_value_list[0][target_action[i]]
-        	print(target_value)
-        	if replay_done[i]:
-        		replay_target[i] = replay_reward[i]
-        	else:
-        		replay_target[i] = replay_reward[i] + self.gamma * \
+            target_value_list = self.target_model.predict(replay_next_history[i])
+            target_value = target_value_list[0][int(target_action[i])]
+            if replay_done[i]:
+                replay_target[i] = replay_reward[i]
+            else:
+                replay_target[i] = replay_reward[i] + self.gamma * \
                             target_value
 
         loss = self.optimizer([replay_history, replay_action, replay_target])
@@ -253,5 +248,5 @@ if __name__ == "__main__":
                 # print("target updated")
 
         if e % 100 == 1:
-            agent.save("./save/SMB_DQN.h5")
+            agent.save("./save/SMB_DDQN.h5")
             print('Weight Saved!')

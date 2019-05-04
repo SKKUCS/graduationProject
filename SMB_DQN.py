@@ -213,7 +213,6 @@ if __name__ == "__main__":
 
             agent.avg_q_max += np.amax(
                 agent.model.predict(np.float32(history / 255.))[0])
-            print(step_reward)
 
             agent.remember(history, action, step_reward, next_history, done)
 
