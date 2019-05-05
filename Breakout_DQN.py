@@ -12,8 +12,23 @@ import random
 import gym
 import math
 
-EPISODES = 50000
+from PIL import Image
 
+
+EPISODES = 50000
+def to_grayscale(img):
+    return np.mean(img, axis=2).astype(np.uint8)
+def to_grayscale2(img):
+    return np.dot(img[...,:3], [0.299, 0.587, 0.114]).astype(np.uint8)
+    #grayscale with ITU-R 601-2 luma transformation
+def downsample(img):
+    return img[0:210:2, 0:160:2]
+def expand_dimension(img):
+    return np.expand_dims(img, axis=2)
+def preprocess(img):
+    return expand_dimension(to_grayscale(downsample(img)))
+def preprocess2(img):
+    return expand_dimension(to_grayscale2(downsample(img)))
 
 class DQNAgent:
     def __init__(self, action_size):
@@ -158,7 +173,7 @@ class DQNAgent:
 
 def pre_processing(observe):
     processed_observe = np.uint8(
-        resize(rgb2gray(observe), (84, 84), mode='constant') * 255)
+        resize(rgb2gray(observe[32:200, 8:152]), (84, 84), mode='constant') * 255)
     return processed_observe
 
 
@@ -178,7 +193,10 @@ if __name__ == "__main__":
         for _ in range(random.randint(1, agent.no_op_steps)):
             observe, _, _, _ = env.step(1)
 
+
+
         state = pre_processing(observe)
+
         history = np.stack((state, state, state, state), axis=2)
         history = np.reshape([history], (1, 84, 84, 4))
 

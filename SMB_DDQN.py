@@ -191,7 +191,7 @@ if __name__ == "__main__":
         done = False
         for _ in range(4):
             start, _, _, _ = env.step(0)
-        start = preprocess2(start)
+        start = preprocess(start)
         start = np.reshape(start, (1, 88, 128, 1))
         history = np.stack((start, start, start, start), axis=3)
         history = np.reshape([history], (1, 88, 128, 4))
@@ -210,7 +210,7 @@ if __name__ == "__main__":
                 if done:
                     break
 
-            next_state = np.reshape(preprocess2(next_state), (1, 88, 128, 1))
+            next_state = np.reshape(preprocess(next_state), (1, 88, 128, 1))
             next_history = np.append(history[:, :, :, 1:4], next_state, axis=3)
 
             agent.avg_q_max += np.amax(

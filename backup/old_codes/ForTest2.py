@@ -62,7 +62,7 @@ for step in range(300):
         img1 = preprocess(state)
         img1 = Image.fromarray(img1)
         img1.save('grayscale1.png')
-        img2 = preprocess(state)
+        img2 = preprocess2(state)
         img2 = Image.fromarray(img2)
         img2.save('grayscale2.png')
         break
