@@ -17,7 +17,7 @@ EPISODES = 50000
 memory_len = 200000
 replay_start = 20000
 global_step = 0
-max_decay_ep = 10000
+max_decay_ep = 5000
 
 def to_grayscale(img):
     return np.mean(img, axis=2).astype(np.uint8)
@@ -38,12 +38,12 @@ def preprocess2(img):
 class DQNAgent:
     def __init__(self, action_size):
         self.render = True
-        self.load_model = False
+        self.load_model = True
         self.state_size = (88, 128, 4)
         self.action_size = action_size
         self.memory = deque(maxlen=memory_len)
         self.gamma = 0.9    # discount rate
-        self.epsilon_max = 1.0  # exploration rate
+        self.epsilon_max = 0.5  # exploration rate
         self.epsilon_min = 0.05
         self.epsilon_now = lambda episode: self.epsilon_min + \
                                      (self.epsilon_max - self.epsilon_min) * math.exp(-1. * episode / max_decay_ep)
@@ -63,7 +63,7 @@ class DQNAgent:
         self.summary_placeholders, self.update_ops, self.summary_op = \
             self.setup_summary()
         self.summary_writer = tf.summary.FileWriter(
-            'summary/SMB_DDQN', self.sess.graph)
+            'summary/SMB_DDQNF', self.sess.graph)
         self.sess.run(tf.global_variables_initializer())
 
         if self.load_model:
